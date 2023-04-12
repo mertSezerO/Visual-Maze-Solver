@@ -1,5 +1,5 @@
 from graphics import Window, Line, Point
-from maze import Cell,Maze
+from maze import Maze
 
 window = Window(600,600)
 maze = Maze(10,10,5,5,50,50,window)

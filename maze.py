@@ -71,3 +71,12 @@ class Maze:
             return
         self.win.redraw()
         time.sleep(0.05)
+
+    def _create_maze(self) -> None:
+        pass
+
+    def _create_entrance_and_exit(self) -> None:
+        pass
+    
+    def _break_wall(self) -> None:
+        pass
