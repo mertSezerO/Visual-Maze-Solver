@@ -15,7 +15,7 @@ class Cell:
 
     @property
     def center(self) -> Point:
-        return Point((self.upper_left.y + self.lower_left.y)/2,(self.upper_left.x + self.upper_right.x)/2)
+        return Point((self.upper_left.x+self.lower_right.x)/2,(self.upper_left.y + self.lower_right.y)/2)
     
     def draw(self, point1: Point, point2: Point) -> None:
         self.upper_left = point1
@@ -46,7 +46,39 @@ class Cell:
             self.win.draw_line(line,"white")
 
     def _draw_path(self, to_cell, false_path=False) -> None:
-        pass
+        if self.win is None:
+            return
+        fill_color = "red"
+        if false_path:
+            fill_color = "gray"
+
+        # moving left
+        if self.upper_left.x > to_cell.upper_left.x:
+            line = Line(Point(self.upper_left.x, self.center.y), Point(self.center.x, self.center.y))
+            self.win.draw_line(line, fill_color)
+            line = Line(Point(to_cell.center.x, to_cell.center.y), Point(to_cell.lower_right.y, to_cell.center.y))
+            self.win.draw_line(line, fill_color)
+
+        # moving right
+        elif self.upper_left.x < to_cell.upper_left.x:
+            line = Line(Point(self.center.x, self.center.y), Point(self.lower_right.x, self.center.y))
+            self.win.draw_line(line, fill_color)
+            line = Line(Point(to_cell.upper_left.x, to_cell.center.y), Point(to_cell.center.x, to_cell.center.y))
+            self.win.draw_line(line, fill_color)
+
+        # moving up
+        elif self.upper_left.y > to_cell.upper_left.y:
+            line = Line(Point(self.center.x, self.center.y), Point(self.center.x, self.upper_left.y))
+            self.win.draw_line(line, fill_color)
+            line = Line(Point(to_cell.center.x, to_cell.lower_right.y), Point(to_cell.center.x, to_cell.center.y))
+            self.win.draw_line(line, fill_color)
+
+        # moving down
+        elif self.upper_left.y < to_cell.upper_left.y:
+            line = Line(Point(self.center.x, self.center.y), Point(self.center.x, self.lower_right.y))
+            self.win.draw_line(line, fill_color)
+            line = Line(Point(to_cell.center.x, to_cell.center.y), Point(to_cell.center.x, to_cell.upper_left.y))
+            self.win.draw_line(line, fill_color)
 
 class Maze:
 
@@ -61,6 +93,7 @@ class Maze:
         self._cells = []
         self._create_cells()
         self._create_maze()
+        self.normalize_cells()
 
     def _create_cells(self) -> None:
         for i in range(self.num_cols):
@@ -99,6 +132,12 @@ class Maze:
         self._cells[self.num_cols-1][self.num_rows-1].has_bottom_wall = False
         self._draw_cell(self.num_cols - 1, self.num_rows - 1)
 
+    def normalize_cells(self) -> None:
+        for i in range(self.num_rows):
+            for j in range(self.num_cols):
+                self._cells[i][j].visited = False
+
+    #break walls using BFS algorithm
     def _break_walls(self, i, j) -> None:
         self._cells[i][j].visited = True
         while True:
@@ -106,7 +145,7 @@ class Maze:
 
             options = 0
 
-            # determine which cell(s) to visit next
+            # determine which cell to visit next
             # left
             if i > 0 and not self._cells[i - 1][j].visited:
                 next_cells.append((i - 1, j))
@@ -124,17 +163,15 @@ class Maze:
                 next_cells.append((i, j + 1))
                 options += 1
 
-            # if there is nowhere to go from here
-            # just break out
+            #if all options handled, break the process
             if options == 0:
                 self._draw_cell(i, j)
                 return
 
-            # randomly choose the next direction to go
+            # randomly choose next cell
             index = random.randrange(options)
             next_cell = next_cells[index]
 
-            # knock out walls between this cell and the next cell(s)
             # right
             if next_cell[0] == i + 1:
                 self._cells[i][j].has_right_wall = False
@@ -152,6 +189,65 @@ class Maze:
                 self._cells[i][j].has_top_wall = False
                 self._cells[i][j - 1].has_bottom_wall = False
 
-            # recursively visit the next cell
             self._break_walls(next_cell[0], next_cell[1])
 
+    def solve(self, i=0, j=0):
+        self._animate()
+
+        # vist the current cell
+        self._cells[i][j].visited = True
+
+        # if we are at the end cell, we are done!
+        if i == self.num_cols - 1 and j == self.num_rows - 1:
+            return True
+
+        # move left if there is no wall and it hasn't been visited
+        if (
+            i > 0
+            and not self._cells[i][j].has_left_wall
+            and not self._cells[i - 1][j].visited
+        ):
+            self._cells[i][j]._draw_path(self._cells[i - 1][j])
+            if self.solve(i - 1, j):
+                return True
+            else:
+                self._cells[i][j]._draw_path(self._cells[i - 1][j], True)
+
+        # move right if there is no wall and it hasn't been visited
+        if (
+            i < self.num_cols - 1
+            and not self._cells[i][j].has_right_wall
+            and not self._cells[i + 1][j].visited
+        ):
+            self._cells[i][j]._draw_path(self._cells[i + 1][j])
+            if self.solve(i + 1, j):
+                return True
+            else:
+                self._cells[i][j]._draw_path(self._cells[i + 1][j], True)
+
+        # move up if there is no wall and it hasn't been visited
+        if (
+            j > 0
+            and not self._cells[i][j].has_top_wall
+            and not self._cells[i][j - 1].visited
+        ):
+            self._cells[i][j]._draw_path(self._cells[i][j - 1])
+            if self.solve(i, j - 1):
+                return True
+            else:
+                self._cells[i][j]._draw_path(self._cells[i][j - 1], True)
+
+        # move down if there is no wall and it hasn't been visited
+        if (
+            j < self.num_rows - 1
+            and not self._cells[i][j].has_bottom_wall
+            and not self._cells[i][j + 1].visited
+        ):
+            self._cells[i][j]._draw_path(self._cells[i][j + 1])
+            if self.solve(i, j + 1):
+                return True
+            else:
+                self._cells[i][j]._draw_path(self._cells[i][j + 1], True)
+
+        # we went the wrong way let the previous cell know by returning False
+        return False
