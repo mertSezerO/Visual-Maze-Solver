@@ -1,4 +1,4 @@
-from graphics import Window, Line, Point
+from graphics import Window
 from maze import Maze
 
 window = Window(600,600)
